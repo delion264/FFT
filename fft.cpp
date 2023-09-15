@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <complex>
+#include <chrono>
 #include "fft.h"
 
 using namespace std;
@@ -98,29 +99,42 @@ public:
 
 int main()
 {
-  int f_s = 50;
+  int f_s = 1000000;
+  int f_c = 250000;
   complex<double> I = -1;
   I = sqrt(I);
-  size_t fft_len = 2048;
+  size_t fft_len = 8192;
   vector<double> t;
   vector<complex<double>> signal;
+  vector<complex<double>> fft_out;
+  vector<double> fft_mag;
 
   for (auto k = 0; k < fft_len; k++)
   {
-    t.push_back(k);
+    t.push_back(k / (double)(f_s));
   }
   for (auto k = 0; k < fft_len; k++)
   {
-    signal.push_back(complex<double>(real(exp(I * t[k] / (double)(f_s))), imag(exp(I * t[k] / (double)(f_s)))));
+    signal.push_back(complex<double>(real(exp(2 * M_PI * (double)f_c * I * t[k])), imag(exp(2 * M_PI * (double)f_c * I * t[k]))));
   }
+
+  auto start_fft_time = chrono::high_resolution_clock::now();
+  FFT transform(fft_len, FFT_FORWARD);
+  fft_out = transform.fft(signal);
+  for (auto k = 0; k < fft_len; k++)
+  {
+    fft_mag.push_back(abs(fft_out[k]));
+  }
+  auto end_fft_time = chrono::high_resolution_clock::now();
+  auto fft_duration = chrono::duration_cast<chrono::microseconds>(end_fft_time - start_fft_time);
 
   for (auto k = 0; k < fft_len; k++)
   {
-    cout << signal[k] << "\n";
+    cout << fft_mag[k] << "\n";
   }
-  cout << signal.size() << "\n";
+  cout << "FFT execution time (us): " << fft_duration.count();
 
-  // FFT transform(fft_len, FFT_FORWARD);
-  // transform.fft();
+  // cout << fft_out.size() << "\n";
+
   return EXIT_SUCCESS;
 }
