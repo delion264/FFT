@@ -5,6 +5,7 @@
 #include <cmath>
 #include <complex>
 #include <chrono>
+#include <algorithm>
 #include "fft.h"
 
 using namespace std;
@@ -99,8 +100,8 @@ public:
 
 int main()
 {
-  int f_s = 1000000;
-  int f_c = 250000;
+  int f_s = 20000000;
+  int f_c = 1000000;
   complex<double> I = -1;
   I = sqrt(I);
   size_t fft_len = 8192;
@@ -108,6 +109,9 @@ int main()
   vector<complex<double>> signal;
   vector<complex<double>> fft_out;
   vector<double> fft_mag;
+  vector<double>::iterator peak_it;
+  vector<double> freq_bins;
+  int peak_idx;
 
   for (auto k = 0; k < fft_len; k++)
   {
@@ -121,20 +125,30 @@ int main()
   auto start_fft_time = chrono::high_resolution_clock::now();
   FFT transform(fft_len, FFT_FORWARD);
   fft_out = transform.fft(signal);
+
   for (auto k = 0; k < fft_len; k++)
   {
-    fft_mag.push_back(abs(fft_out[k]));
+    fft_mag.push_back(sqrt(abs(fft_out[k])));
   }
+
   auto end_fft_time = chrono::high_resolution_clock::now();
   auto fft_duration = chrono::duration_cast<chrono::microseconds>(end_fft_time - start_fft_time);
+  cout << "FFT execution time (us): " << fft_duration.count();
 
   for (auto k = 0; k < fft_len; k++)
   {
     cout << fft_mag[k] << "\n";
   }
-  cout << "FFT execution time (us): " << fft_duration.count();
 
-  // cout << fft_out.size() << "\n";
+  peak_it = max_element(fft_mag.begin(), fft_mag.end());
+  peak_idx = peak_it - fft_mag.begin();
+
+  for (auto k = 0; k < fft_len; k++)
+  {
+    freq_bins.push_back((-f_s / 2) + (k * (double)f_s / 8192));
+  }
+
+  cout << "FFT peak index: " << freq_bins.at(peak_idx) << '\n';
 
   return EXIT_SUCCESS;
 }
