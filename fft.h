@@ -1,4 +1,5 @@
-enum FFT_DIRECTION {
-  FORWARD = 1,
-  REVERSE = -1
-} ;
+enum FFT_DIRECTION
+{
+  FFT_FORWARD = 1,
+  FFT_REVERSE = -1
+};
