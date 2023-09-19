@@ -101,7 +101,7 @@ public:
 int main()
 {
   int f_s = 20000000;
-  int f_c = 1000000;
+  int f_c = 10000000;
   complex<double> I = -1;
   I = sqrt(I);
   size_t fft_len = 8192;
@@ -145,10 +145,12 @@ int main()
 
   for (auto k = 0; k < fft_len; k++)
   {
-    freq_bins.push_back((-f_s / 2) + (k * (double)f_s / 8192));
+    freq_bins.push_back(k * (double)f_s / 8192);
   }
 
-  cout << "FFT peak index: " << freq_bins.at(peak_idx) << '\n';
+  /* TO DO: circular shift for fft output */
+
+  cout << "FFT peak frequency/bin index: " << freq_bins.at(peak_idx) << '/' << peak_idx << '\n';
 
   return EXIT_SUCCESS;
 }
