@@ -152,5 +152,5 @@ int main()
 
   cout << "FFT peak frequency/bin index: " << freq_bins.at(peak_idx) << '/' << peak_idx << '\n';
 
-  return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
