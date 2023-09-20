@@ -56,11 +56,10 @@ public:
     vector<complex<double>> odd_input_idx;
     vector<complex<double>> even_fft;
     vector<complex<double>> odd_fft;
-
     size_t n = input_signal.size();
-
     complex<double> n_root = (double)direction * exp(2 * M_PI * I / (double)n);
     complex<double> omega = 1;
+    complex<double> t_k; /* twiddle factor */
 
     /* Base case */
     if (n == 1)
@@ -68,7 +67,7 @@ public:
       return input_signal;
     }
 
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < (int)n; ++i)
     {
       if ((i % 2) == 0)
       {
@@ -87,10 +86,11 @@ public:
     odd_fft = fft(odd_input_idx);
 
     /* Stitch together sub-solutions */
-    for (int k = 0; k < n / 2; ++k)
+    for (int k = 0; k < (int)n / 2; ++k)
     {
-      output_fft[k] = even_fft[k] + omega * odd_fft[k];
-      output_fft[k + (n / 2)] = even_fft[k] - omega * odd_fft[k];
+      t_k = omega * odd_fft[k];
+      output_fft[k] = even_fft[k] + t_k;
+      output_fft[k + (n / 2)] = even_fft[k] - t_k;
       omega = omega * n_root;
     }
 
@@ -100,11 +100,11 @@ public:
 
 int main()
 {
-  int f_s = 20000000;
-  int f_c = 10000000;
+  int f_s = 2000000;
+  int f_c = 5000;
   complex<double> I = -1;
   I = sqrt(I);
-  size_t fft_len = 8192;
+  size_t fft_len = 16384*2;
   vector<double> t;
   vector<complex<double>> signal;
   vector<complex<double>> fft_out;
@@ -112,12 +112,14 @@ int main()
   vector<double>::iterator peak_it;
   vector<double> freq_bins;
   int peak_idx;
+  double x_k;
+  double bin_width = (double)f_s/fft_len;
 
-  for (auto k = 0; k < fft_len; k++)
+  for (auto k = 0; k < (int)fft_len; k++)
   {
     t.push_back(k / (double)(f_s));
   }
-  for (auto k = 0; k < fft_len; k++)
+  for (auto k = 0; k < (int)fft_len; k++)
   {
     signal.push_back(complex<double>(real(exp(2 * M_PI * (double)f_c * I * t[k])), imag(exp(2 * M_PI * (double)f_c * I * t[k]))));
   }
@@ -126,31 +128,28 @@ int main()
   FFT transform(fft_len, FFT_FORWARD);
   fft_out = transform.fft(signal);
 
-  for (auto k = 0; k < fft_len; k++)
+  for (auto k = 0; k < (int)fft_len; k++)
   {
-    fft_mag.push_back(sqrt(abs(fft_out[k])));
+    x_k = abs(fft_out[k]);
+    fft_mag.push_back((x_k*x_k)/(fft_len*fft_len));
   }
+
+  reverse(fft_mag.begin() + 1, fft_mag.end());
 
   auto end_fft_time = chrono::high_resolution_clock::now();
   auto fft_duration = chrono::duration_cast<chrono::microseconds>(end_fft_time - start_fft_time);
-  cout << "FFT execution time (us): " << fft_duration.count();
-
-  for (auto k = 0; k < fft_len; k++)
-  {
-    cout << fft_mag[k] << "\n";
-  }
+  cout << "FFT execution time (us): " << fft_duration.count() << '\n';
 
   peak_it = max_element(fft_mag.begin(), fft_mag.end());
   peak_idx = peak_it - fft_mag.begin();
 
-  for (auto k = 0; k < fft_len; k++)
+  for (auto k = 0; k < (int)fft_len; k++)
   {
-    freq_bins.push_back(k * (double)f_s / 8192);
+    freq_bins.push_back(k * bin_width);
   }
 
-  /* TO DO: circular shift for fft output */
+  cout << "FFT peak frequency: " << freq_bins.at(peak_idx) << " Hz / Bin index: " << peak_idx << '\n';
+  cout << "Bin width: " << bin_width << " Hz \n";
 
-  cout << "FFT peak frequency/bin index: " << freq_bins.at(peak_idx) << '/' << peak_idx << '\n';
-
-    return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }
