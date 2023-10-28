@@ -10,16 +10,13 @@
 
 using namespace std;
 
-class FFT
-{
+class FFT {
 public:
   size_t fft_length;
-  FFT_DIRECTION direction;
   complex<double> I;
 
-  FFT(size_t len, FFT_DIRECTION dir)
+  FFT(size_t len)
   {
-    set_direction(dir);
     set_length(len);
     I = -1;
     I = sqrt(I);
@@ -34,22 +31,28 @@ public:
     return fft_length;
   }
 
-  FFT_DIRECTION get_direction(void)
-  {
-    return direction;
-  }
-
   void set_length(size_t l)
   {
     fft_length = l;
   }
 
-  void set_direction(FFT_DIRECTION d)
-  {
-    direction = d;
+  vector<complex<double>> zero_pad_prefix(vector<complex<double>> &v) {
+    size_t n = v.size();
+    vector<complex<double>>::iterator v_start;
+    v_start = v.begin();
+    v.insert(v_start, n, 0);
+    return v;
   }
 
-  vector<complex<double>> fft(vector<complex<double>> &input_signal)
+  vector<complex<double>> zero_pad_suffix(vector<complex<double>> &v) {
+    size_t n = v.size();
+    vector<complex<double>>::iterator v_end;
+    v_end = v.end();
+    v.insert(v_end, n, 0);
+    return v;
+  }
+
+  vector<complex<double>> fft(vector<complex<double>> &input_signal, FFT_DIRECTION direction)
   {
 
     vector<complex<double>> even_input_idx;
@@ -82,10 +85,20 @@ public:
     vector<complex<double>> output_fft(n, 0);
 
     /* Recursive call */
-    even_fft = fft(even_input_idx);
-    odd_fft = fft(odd_input_idx);
+    even_fft = fft(even_input_idx, direction);
+    odd_fft = fft(odd_input_idx, direction);
 
     /* Stitch together sub-solutions */
+    /* DOES THIS COUNTER BIT REVERSAL?
+    for (int k = n-1; k > (int)n / 2; --k)
+    {
+      t_k = omega * odd_fft[k];
+      output_fft[k] = even_fft[k] + t_k;
+      output_fft[k - (n / 2)] = even_fft[k] - t_k;
+      omega = omega * n_root;
+    }
+    */
+
     for (int k = 0; k < (int)n / 2; ++k)
     {
       t_k = omega * odd_fft[k];
@@ -93,8 +106,27 @@ public:
       output_fft[k + (n / 2)] = even_fft[k] - t_k;
       omega = omega * n_root;
     }
-
+    reverse(output_fft.begin(), output_fft.end());
     return output_fft;
+  }
+
+  vector<complex<double>> cross_corr(vector<complex<double>> &input_a, vector<complex<double>> &input_b) {
+    vector<complex<double>> fft_coeff(2*input_a.size(), 0);
+    vector<complex<double>>::iterator it = fft_coeff.begin();
+    vector<complex<double>> xcorr;
+    vector<complex<double>> pad_input_a = zero_pad_prefix(input_a);
+    vector<complex<double>> pad_input_b = zero_pad_prefix(input_b);
+    vector<complex<double>> fft_a = fft(pad_input_a, FFT_FORWARD);
+    vector<complex<double>> fft_b = fft(pad_input_b, FFT_FORWARD);
+
+    for(int i = 0; i < (int)input_a.size(); ++i) {
+      *it = fft_a[i]*conj(fft_b[i]);
+      ++it;
+      /* TO DO: Implement control measure to ensure iterator does not step out of fft_coeff memory */
+    }
+
+    xcorr = fft(fft_coeff, FFT_REVERSE);
+    return xcorr;
   }
 };
 
@@ -124,9 +156,9 @@ int main()
     signal.push_back(complex<double>(real(exp(2 * M_PI * (double)f_c * I * t[k])), imag(exp(2 * M_PI * (double)f_c * I * t[k]))));
   }
 
-  auto start_fft_time = chrono::high_resolution_clock::now();
-  FFT transform(fft_len, FFT_FORWARD);
-  fft_out = transform.fft(signal);
+  // auto start_fft_time = chrono::high_resolution_clock::now();
+  FFT transform(fft_len);
+  fft_out = transform.fft(signal, FFT_FORWARD);
 
   for (auto k = 0; k < (int)fft_len; k++)
   {
@@ -134,11 +166,9 @@ int main()
     fft_mag.push_back((x_k*x_k)/(fft_len*fft_len));
   }
 
-  reverse(fft_mag.begin() + 1, fft_mag.end());
-
-  auto end_fft_time = chrono::high_resolution_clock::now();
-  auto fft_duration = chrono::duration_cast<chrono::microseconds>(end_fft_time - start_fft_time);
-  cout << "FFT execution time (us): " << fft_duration.count() << '\n';
+  // auto end_fft_time = chrono::high_resolution_clock::now();
+  // auto fft_duration = chrono::duration_cast<chrono::microseconds>(end_fft_time - start_fft_time);
+  // cout << "FFT execution time (us): " << fft_duration.count() << '\n';
 
   peak_it = max_element(fft_mag.begin(), fft_mag.end());
   peak_idx = peak_it - fft_mag.begin();
