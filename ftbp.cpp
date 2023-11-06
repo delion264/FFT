@@ -1,141 +1,125 @@
-#define _USE_MATH_DEFINES
-
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <complex>
-#include <chrono>
-#include <algorithm>
 #include "ftbp.h"
 
-using namespace std;
+FTBP::FTBP(size_t len)
+{
+  set_length(len);
+  I = -1;
+  I = sqrt(I);
+}
 
-class FTBP {
-public:
-  size_t fft_length;
-  complex<double> I;
+FTBP::~FTBP()
+{
+}
 
-  FTBP(size_t len)
+size_t FTBP::get_length(void)
+{
+  return fft_length;
+}
+
+void FTBP::set_length(size_t l)
+{
+  fft_length = l;
+}
+
+vector<complex<double>> FTBP::zero_pad_prefix(vector<complex<double>> &v) {
+  size_t n = v.size();
+  vector<complex<double>>::iterator v_start;
+  v_start = v.begin();
+  v.insert(v_start, n, 0);
+  return v;
+}
+
+vector<complex<double>> FTBP::zero_pad_suffix(vector<complex<double>> &v) {
+  size_t n = v.size();
+  vector<complex<double>>::iterator v_end;
+  v_end = v.end();
+  v.insert(v_end, n, 0);
+  return v;
+}
+
+vector<complex<double>> FTBP::compute_dbfs(vector<complex<int16_t>> &v) {
+  vector<complex<double>> v_dbfs;
+  for(int i = 0; i < v.size(); ++i) {
+    v_dbfs.push_back(20 * log10((double)abs(v[i])/2047));
+  }
+  return v_dbfs;
+}
+
+vector<complex<double>> FTBP::fft(vector<complex<double>> &input_signal, FFT_DIRECTION direction)
+{
+
+  vector<complex<double>> even_input_idx;
+  vector<complex<double>> odd_input_idx;
+  vector<complex<double>> even_fft;
+  vector<complex<double>> odd_fft;
+  size_t n = input_signal.size();
+  complex<double> n_root = (double)direction * exp(2 * M_PI * I / (double)n);
+  complex<double> omega = 1;
+  complex<double> t_k; /* twiddle factor */
+
+  /* Base case */
+  if (n == 1)
   {
-    set_length(len);
-    I = -1;
-    I = sqrt(I);
+    return input_signal;
   }
 
-  ~FTBP()
+  for (int i = 0; i < (int)n; ++i)
   {
-  }
-
-  size_t get_length(void)
-  {
-    return fft_length;
-  }
-
-  void set_length(size_t l)
-  {
-    fft_length = l;
-  }
-
-  vector<complex<double>> zero_pad_prefix(vector<complex<double>> &v) {
-    size_t n = v.size();
-    vector<complex<double>>::iterator v_start;
-    v_start = v.begin();
-    v.insert(v_start, n, 0);
-    return v;
-  }
-
-  vector<complex<double>> zero_pad_suffix(vector<complex<double>> &v) {
-    size_t n = v.size();
-    vector<complex<double>>::iterator v_end;
-    v_end = v.end();
-    v.insert(v_end, n, 0);
-    return v;
-  }
-
-  vector<complex<double>> compute_dbfs(vector<complex<int16_t>> &v) {
-    vector<complex<double>> v_dbfs;
-    for(int i = 0; i < v.size(); ++i) {
-      v_dbfs.push_back(20 * log10((double)abs(v[i])/2047));
-    }
-    return v_dbfs;
-  }
-
-  vector<complex<double>> fft(vector<complex<double>> &input_signal, FFT_DIRECTION direction)
-  {
-
-    vector<complex<double>> even_input_idx;
-    vector<complex<double>> odd_input_idx;
-    vector<complex<double>> even_fft;
-    vector<complex<double>> odd_fft;
-    size_t n = input_signal.size();
-    complex<double> n_root = (double)direction * exp(2 * M_PI * I / (double)n);
-    complex<double> omega = 1;
-    complex<double> t_k; /* twiddle factor */
-
-    /* Base case */
-    if (n == 1)
+    if ((i % 2) == 0)
     {
-      return input_signal;
+      even_input_idx.push_back(input_signal[i]);
     }
-
-    for (int i = 0; i < (int)n; ++i)
+    else
     {
-      if ((i % 2) == 0)
-      {
-        even_input_idx.push_back(input_signal[i]);
-      }
-      else
-      {
-        odd_input_idx.push_back(input_signal[i]);
-      }
+      odd_input_idx.push_back(input_signal[i]);
     }
-
-    vector<complex<double>> output_fft(n, 0);
-
-    /* Recursive call */
-    even_fft = fft(even_input_idx, direction);
-    odd_fft = fft(odd_input_idx, direction);
-
-    /* Stitch together sub-solutions */
-    /* DOES THIS COUNTER BIT REVERSAL?
-    for (int k = n-1; k > (int)n / 2; --k)
-    {
-      t_k = omega * odd_fft[k];
-      output_fft[k] = even_fft[k] + t_k;
-      output_fft[k - (n / 2)] = even_fft[k] - t_k;
-      omega = omega * n_root;
-    }
-    */
-
-    for (int k = 0; k < (int)n / 2; ++k)
-    {
-      t_k = omega * odd_fft[k];
-      output_fft[k] = even_fft[k] + t_k;
-      output_fft[k + (n / 2)] = even_fft[k] - t_k;
-      omega = omega * n_root;
-    }
-    reverse(output_fft.begin(), output_fft.end());
-    return output_fft;
   }
 
-  vector<complex<double>> cross_corr(vector<complex<double>> &input_a, vector<complex<double>> &input_b) {
-    vector<complex<double>> fft_coeff(2*input_a.size(), 0);
-    vector<complex<double>>::iterator it = fft_coeff.begin();
-    vector<complex<double>> xcorr;
-    vector<complex<double>> pad_input_a = zero_pad_prefix(input_a);
-    vector<complex<double>> pad_input_b = zero_pad_prefix(input_b);
-    vector<complex<double>> fft_a = fft(pad_input_a, FFT_FORWARD);
-    vector<complex<double>> fft_b = fft(pad_input_b, FFT_FORWARD);
+  vector<complex<double>> output_fft(n, 0);
 
-    for(int i = 0; i < (int)input_a.size(); ++i) {
-      *it = fft_a[i]*conj(fft_b[i]);
-      ++it;
-    }
+  /* Recursive call */
+  even_fft = fft(even_input_idx, direction);
+  odd_fft = fft(odd_input_idx, direction);
 
-    xcorr = fft(fft_coeff, FFT_REVERSE);
-    return xcorr;
+  /* Stitch together sub-solutions */
+  /* DOES THIS COUNTER BIT REVERSAL?
+  for (int k = n-1; k > (int)n / 2; --k)
+  {
+    t_k = omega * odd_fft[k];
+    output_fft[k] = even_fft[k] + t_k;
+    output_fft[k - (n / 2)] = even_fft[k] - t_k;
+    omega = omega * n_root;
   }
-};
+  */
+
+  for (int k = 0; k < (int)n / 2; ++k)
+  {
+    t_k = omega * odd_fft[k];
+    output_fft[k] = even_fft[k] + t_k;
+    output_fft[k + (n / 2)] = even_fft[k] - t_k;
+    omega = omega * n_root;
+  }
+  reverse(output_fft.begin(), output_fft.end());
+  return output_fft;
+}
+
+vector<complex<double>> FTBP::cross_corr(vector<complex<double>> &input_a, vector<complex<double>> &input_b) {
+  vector<complex<double>> fft_coeff(2*input_a.size(), 0);
+  vector<complex<double>>::iterator it = fft_coeff.begin();
+  vector<complex<double>> xcorr;
+  vector<complex<double>> pad_input_a = zero_pad_prefix(input_a);
+  vector<complex<double>> pad_input_b = zero_pad_prefix(input_b);
+  vector<complex<double>> fft_a = fft(pad_input_a, FFT_FORWARD);
+  vector<complex<double>> fft_b = fft(pad_input_b, FFT_FORWARD);
+
+  for(int i = 0; i < (int)input_a.size(); ++i) {
+    *it = fft_a[i]*conj(fft_b[i]);
+    ++it;
+  }
+
+  xcorr = fft(fft_coeff, FFT_REVERSE);
+  return xcorr;
+}
 
 int main()
 {
