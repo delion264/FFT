@@ -10,19 +10,19 @@
 
 using namespace std;
 
-class FFT {
+class FTBP {
 public:
   size_t fft_length;
   complex<double> I;
 
-  FFT(size_t len)
+  FTBP(size_t len)
   {
     set_length(len);
     I = -1;
     I = sqrt(I);
   }
 
-  ~FFT()
+  ~FTBP()
   {
   }
 
@@ -50,6 +50,14 @@ public:
     v_end = v.end();
     v.insert(v_end, n, 0);
     return v;
+  }
+
+  vector<complex<double>> compute_dbfs(vector<complex<int16_t>> &v) {
+    vector<complex<double>> v_dbfs;
+    for(int i = 0; i < v.size(); ++i) {
+      v_dbfs.push_back(20 * log10((double)abs(v[i])/2047));
+    }
+    return v_dbfs;
   }
 
   vector<complex<double>> fft(vector<complex<double>> &input_signal, FFT_DIRECTION direction)
@@ -122,7 +130,6 @@ public:
     for(int i = 0; i < (int)input_a.size(); ++i) {
       *it = fft_a[i]*conj(fft_b[i]);
       ++it;
-      /* TO DO: Implement control measure to ensure iterator does not step out of fft_coeff memory */
     }
 
     xcorr = fft(fft_coeff, FFT_REVERSE);
@@ -157,7 +164,7 @@ int main()
   }
 
   // auto start_fft_time = chrono::high_resolution_clock::now();
-  FFT transform(fft_len);
+  FTBP transform(fft_len);
   fft_out = transform.fft(signal, FFT_FORWARD);
 
   for (auto k = 0; k < (int)fft_len; k++)
